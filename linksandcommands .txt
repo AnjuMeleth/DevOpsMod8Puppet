@@ -1,0 +1,177 @@
+#install puppet master
+==================================
+    5  wget https://apt.puppetlabs.com/puppet-release-bionic.deb
+    6  sudo dpkg -i puppet-release-bionic.deb
+    7  apt-get update
+    8  apt-get install puppetserver
+    9  vi /etc/default/puppetserver
+# Modify the line as JAVA_ARGS="-Xms512m -Xmx512m -XX:MaxPermSize=256m"
+   10  ufw allow 8140
+   11  systemctl start puppetserver
+   12  vi /etc/hosts
+# provide the Ip address of the puppet master and name it as puppet
+
+#install puppet agent
+========================================
+    5  lsb_release -a
+    6  wget https://apt.puppetlabs.com/puppet-release-bionic.deb
+    7  sudo dpkg -i puppet-release-bionic.deb
+    9  apt-get update
+   10  sudo apt-get install puppet-agent
+   12  export PATH=/opt/puppetlabs/bin:$PATH
+   14  ufw allow 8140
+   17  vi /etc/hosts # include master Ip address naming as puppet, agent Ip address as puppet-agent
+   20  systemctl stop puppet
+   21  systemctl status puppet
+   22  systemctl start puppet
+   23  systemctl status puppet
+   24  systemctl enable puppet
+   25  systemctl status puppet
+
+Sign the certificate with the master and agent
+=================================================
+   16  puppetserver ca setup
+   17  puppetserver ca list
+   19  puppetserver ca sign --all
+   20  puppetserver ca list --all
+
+# https://puppet.com/blog/magic-directories-guide-to-puppet-directory-structure/  => Puppet directory structure
+# https://github.com/puppetlabs/puppetlabs-aws#requirements
+# https://linuxacademy.com/guide/11889-deploying-ec2-resources-with-puppet/
+# https://www.edureka.co/community/33215/steps-to-trigger-puppet-agent-from-jenkins
+# https://ask.puppet.com/question/5680/could-not-request-certificate-the-certificate-retrieved-from-the-master-does-not-match-the-agents-private-key/
+
+Provisioning a AWS instance
+==================================
+sudo /opt/puppetlabs/puppet/bin/gem install aws-sdk retries
+/opt/puppetlabs/bin/puppet module install puppetlabs-aws
+   45  mkdir -p src/puppet/modules
+   46  cd src/puppet/modules
+   47  mkdir aws_demo
+   48  cd aws_demo/
+   49  vi create.pp
+# create.pp file is as follows
+ec2_securitygroup { 'sample-group':
+  ensure      => present,
+  region      => 'ap-south-1',
+  vpc         => '<VPC of the AWS',
+  description => 'Group used for testing Puppet AWS module',
+}
+ec2_instance { 'myubuntu':
+    ensure              => present,
+    region              => 'ap-south-1',
+    image_id            => 'ami-0123b531fc646552f',
+    instance_type       => 't2.micro',
+    key_name             => 'Puppet',
+    availability_zone   => 'ap-south-1b',
+    security_groups     => ['sample-group'],
+    subnet              => 'Subnet of the region of the availability zone'
+  }
+# Remember to tag the subnet with the name tag (could be same subnet ID itself). This name is what it searched for by the Puppet
+54  puppet parser validate create.pp
+152  export AWS_ACCESS_KEY_ID=<Id from the AWS>
+153  export AWS_SECRET_ACCESS_KEY=<key from the AWS>
+208  puppet apply create.pp --debug
+
+# Run a sample demo of installing tree, git in a puppet agent node
+=======================================================================
+274  cd /etc/puppetlabs/code/environments/production/manifests/  => main manifests file is here which is site.pp
+278  vi site.pp
+package {'git':
+ ensure => present
+}
+exec {'apt-update':
+ command => '/usr/bin/apt-get update'
+}
+package {'tree':
+ ensure => present
+}
+# Run the command /opt/puppetlabs/bin/puppet agent -t on the Puppet Agent node
+# Modules demo 
+======================
+mkdir modules
+cd modules
+sudo apt-get install pdk
+pdk new module edu-apache2
+cd ..
+pdk build apache2
+ls
+cd pkg
+ls # edu-apache2-0.1.0.tar.gz
+/opt/puppetlabs/bin/puppet module install ./apache2/pkg/edu-apache2-0.1.0.tar.gz => installed in /etc/puppetlabs/code/environments/production/modules
+# create init.pp file => attached in GitHub
+# run puppet agent -t in Puppet agent node
+# See the apache running at http://<ipaddress of the agent node>
+
+# Docker demo
+================================
+ 321  pdk new module edu-devopsin
+ 335  cp Dockerfile  ../src/puppet/modules/devopsin/files
+ 336  cp addressbook.war ../src/puppet/modules/devopsin/files
+ 339  cd ~/src/puppet/modules
+ 346  cd manifests
+  347  ls
+  350  vi install.pp
+  351  vi deploy.pp
+  352  vi init.pp
+  353  cd ..
+  354  pdk build
+  355  cd ..
+  356  /opt/puppetlabs/bin/puppet module install ./devopsin/pkg/edu-devopsin-0.1.0.tar.gz
+  360  vi site.pp
+  # in Puppet agent , run the command puppet agent -t 
+ # Notes => to install newer version modify metadata.json file
+================================================================
+  416  vi metadata.json
+  417  pdk build
+  418  ls
+  419  cd pkg
+  420  ls
+  421  cd ../../
+  424  /opt/puppetlabs/bin/puppet module install --force ./devopsin/pkg/edu-devopsin-0.1.1.tar.gz
+  425  cd /etc/puppetlabs/code/environments/production/modules
+  426  ls
+  427  cd devopsin/manifests
+  428  vi deploy.pp
+
+Additional directory details
+=====================================
+  431  puppet config print modulepath
+  433  cd /etc/puppetlabs   => /etc/puppetlabs/puppet/puppet.conf has the default configurations
+Additional Environmets
+=============================
+  457  cd code/environments/
+  458  ls
+  459  mkdir testing
+  460  mkdir development
+  461  cd testing
+  466  mkdir manifests
+  467  cd manifests
+  468  vi site.pp
+  469  cd ../../development
+  470  mkdir manifests
+  471  cd manifests
+  472  vi site.pp
+# site.pp in development environment
+file {'/tmp/example.txt':
+ ensure  => present,
+ mode    => "0644",
+ content => "From The Development Environment \n",
+}
+# site.pp in testing environment
+file {'/tmp/example.txt':
+ ensure  => present,
+ mode    => "0644",
+ content => "From The Testing Environment \n",
+}
+# Enter the environment details on the agent node puppet.conf
+[agent]
+environment = development
+# Run the puppet agent -t command 
+
+
+
+
+
+
+
