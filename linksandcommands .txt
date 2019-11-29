@@ -40,6 +40,7 @@ Sign the certificate with the master and agent
 # https://linuxacademy.com/guide/11889-deploying-ec2-resources-with-puppet/
 # https://www.edureka.co/community/33215/steps-to-trigger-puppet-agent-from-jenkins
 # https://ask.puppet.com/question/5680/could-not-request-certificate-the-certificate-retrieved-from-the-master-does-not-match-the-agents-private-key/
+# https://puppet.com/docs/pe/2018.1/managing_puppet_code.html#:~:targetText=Code%20Manager%20and%20r10k%20are,your%20Puppet%20code%20and%20data.   => Puppet enterprise using Code manager to copy the code from the Git Hub etc
 
 Provisioning a AWS instance
 ==================================
